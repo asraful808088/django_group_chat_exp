@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://use.fontawesome.com/releases/v5.5.0/css/all.css"
+      integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU"
+      crossorigin="anonymous"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lobster&display=swap"
+      rel="stylesheet"
+    />
+    <title>Dynamic & Group Chat</title>
+    <style>
+      ::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+      .root {
+        width: 500px;
+        height: 900px;
+        margin: auto;
+        margin-top: 50px;
+
+        display: flex;
+        flex-direction: column;
+      }
+      .root .user-Info {
+        display: flex;
+        align-items: center;
+      }
+      .root div .user-icon {
+        font-size: 70px;
+        margin: 10px;
+      }
+
+      .root .user-Info .user-name {
+        font-size: 50px;
+        font-family: "Lobster", cursive;
+      }
+      .root .message-box {
+        width: 100%;
+        height: 100%;
+        background-color: aqua;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column-reverse;
+      }
+      .root .message-box .chat-text {
+        max-width: 400px;
+        position: relative;
+        padding: 10px;
+        border-radius: 10px;
+        margin: 10px;
+        list-style: none;
+      }
+      .root .message-box .chat-text > * {
+        margin: 0;
+      }
+      .root .message-box .mychat {
+        align-self: flex-end;
+        background-color: rgb(255, 255, 255);
+      }
+      .root .message-box .oposite {
+        align-self: flex-start;
+        background-color: rgb(255, 255, 255);
+      }
+      .root .input-box {
+        width: 100%;
+        height: 50px;
+        display: flex;
+      }
+      .root .input-box .button {
+        min-height: 50px;
+        min-width: 50px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .root .input-box .button button {
+        border: 0;
+        outline: none;
+        cursor: pointer;
+        z-index: 1;
+        background-color: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .root .input-box .button span {
+        content: "\2B9E";
+        font-size: 30px;
+      }
+      .root .input-box .button span:hover {
+        font-size: 25px;
+        transition: 0.5s;
+        transform: scale(0.9);
+      }
+      .root .input-box .input-area {
+        margin: 0;
+        width: 100%;
+        position: relative;
+        border-radius: 10px;
+        margin: 5px;
+        background-color: rgba(66, 66, 66, 0.466);
+      }
+      .root .input-box .input-area input {
+        height: 100%;
+        width: 100%;
+        border: none;
+        outline: none;
+        background-color: transparent;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="root">
+      {{room_name|json_script:"group-name"}}
+      <div class="item user-Info">
+        <div>
+          <i class="fa fa-user-circle user-icon"></i>
+        </div>
+        <div class="user-name" id="user-name">USER NAME</div>
+      </div>
+      <div class="item message-box" id="message-box"></div>
+      <div class="item input-box">
+        <div class="input-area">
+          <input type="text" id="text" placeholder="message..." />
+        </div>
+
+        <div class="button">
+          <button type="button" onclick="send_message()">
+            <span>&#11166;</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      const chatBox = document.getElementById("message-box");
+      const text = document.getElementById("text");
+      const groupName = JSON.parse(document.getElementById("group-name").text);
+      const ws = new WebSocket(`ws://192.168.0.104:8000/ws/chat/${groupName}`);
+      let getUserName = prompt("Please enter your name", "default");
+      let userId = "";
+
+      ws.onopen = () => {
+        ws.send(
+          JSON.stringify({
+            type: "init",
+          })
+        );
+      };
+      ws.onmessage = (e) => {
+        const jsonData = JSON.parse(e.data);
+        if (jsonData.type === "init") {
+          userId = jsonData["userId"];
+        } else if (
+          jsonData.type === "message" &&
+          jsonData.sender_id != userId
+        ) {
+          addMessage(jsonData.sender_name, jsonData.message, true);
+        }
+      };
+
+      if (getUserName != null) {
+        document.getElementById("user-name").innerHTML = getUserName;
+      }
+
+      function send_message() {
+        if (text.value !== null) {
+          addMessage(getUserName, text.value);
+          ws.send(
+            JSON.stringify({
+              type: "message",
+              sender_name: getUserName,
+              sender_id: userId,
+              message: text.value,
+            })
+          );
+          text.value = null;
+        }
+      }
+      //alternative option tag.innertext
+      function addMessage(name, text, oposite) {
+        const createtext = document.createTextNode(text);
+        const header = document.createElement("li");
+        const h3 = document.createElement("h4");
+        const h3text = document.createTextNode("Username: ");
+        const span = document.createElement("span");
+        span.appendChild(document.createTextNode(name));
+        const hr = document.createElement("hr");
+        h3.appendChild(h3text);
+        h3.appendChild(span);
+        header.classList.add("chat-text");
+        if (oposite) {
+          header.classList.add("oposite");
+        } else {
+          header.classList.add("mychat");
+        }
+        header.appendChild(h3);
+        header.appendChild(hr);
+        header.appendChild(createtext);
+        chatBox.insertBefore(header, chatBox.children[0]);
+      }
+    </script>
+  </body>
+</html>
